@@ -59,6 +59,7 @@ set(SPIRV_TOOLS_OPT_SOURCES
   fold_spec_constant_op_and_composite_pass.h
   freeze_spec_constant_value_pass.h
   function.h
+  graph.h
   graphics_robust_access_pass.h
   if_conversion.h
   inline_exhaustive_pass.h
@@ -104,16 +105,19 @@ set(SPIRV_TOOLS_OPT_SOURCES
   reflect.h
   register_pressure.h
   relax_float_ops_pass.h
+  canonicalize_ids_pass.h
   remove_dontinline_pass.h
   remove_duplicates_pass.h
   remove_unused_interface_variables_pass.h
   replace_desc_array_access_using_var_index.h
   replace_invalid_opc.h
+  resolve_binding_conflicts_pass.h
   scalar_analysis.h
   scalar_analysis_nodes.h
   scalar_replacement_pass.h
   set_spec_constant_default_value_pass.h
   simplification_pass.h
+  split_combined_image_sampler_pass.h
   spread_volatile_semantics.h
   ssa_rewrite_pass.h
   strength_reduction_pass.h
@@ -178,6 +182,7 @@ set(SPIRV_TOOLS_OPT_SOURCES
   fold_spec_constant_op_and_composite_pass.cpp
   freeze_spec_constant_value_pass.cpp
   function.cpp
+  graph.cpp
   graphics_robust_access_pass.cpp
   if_conversion.cpp
   inline_exhaustive_pass.cpp
@@ -220,16 +225,19 @@ set(SPIRV_TOOLS_OPT_SOURCES
   redundancy_elimination.cpp
   register_pressure.cpp
   relax_float_ops_pass.cpp
+  canonicalize_ids_pass.cpp
   remove_dontinline_pass.cpp
   remove_duplicates_pass.cpp
   remove_unused_interface_variables_pass.cpp
   replace_desc_array_access_using_var_index.cpp
   replace_invalid_opc.cpp
+  resolve_binding_conflicts_pass.cpp
   scalar_analysis.cpp
   scalar_analysis_simplification.cpp
   scalar_replacement_pass.cpp
   set_spec_constant_default_value_pass.cpp
   simplification_pass.cpp
+  split_combined_image_sampler_pass.cpp
   spread_volatile_semantics.cpp
   ssa_rewrite_pass.cpp
   strength_reduction_pass.cpp
@@ -256,7 +264,15 @@ endif()
 
 spvtools_pch(SPIRV_TOOLS_OPT_SOURCES pch_source_opt)
 
+if (SPIRV_TOOLS_USE_MIMALLOC AND (NOT SPIRV_TOOLS_BUILD_STATIC OR SPIRV_TOOLS_USE_MIMALLOC_IN_STATIC_BUILD))
+  list(APPEND SPIRV_TOOLS_OPT_SOURCES ${spirv-tools_SOURCE_DIR}/source/mimalloc.cpp)
+endif()
+
 add_library(SPIRV-Tools-opt ${SPIRV_TOOLS_LIBRARY_TYPE} ${SPIRV_TOOLS_OPT_SOURCES})
+
+if (SPIRV_TOOLS_USE_MIMALLOC AND (NOT SPIRV_TOOLS_BUILD_STATIC OR SPIRV_TOOLS_USE_MIMALLOC_IN_STATIC_BUILD))
+  target_link_libraries(SPIRV-Tools-opt PRIVATE mimalloc-static)
+endif()
 
 spvtools_default_compile_options(SPIRV-Tools-opt)
 target_include_directories(SPIRV-Tools-opt
@@ -274,7 +290,13 @@ set_property(TARGET SPIRV-Tools-opt PROPERTY FOLDER "SPIRV-Tools libraries")
 spvtools_check_symbol_exports(SPIRV-Tools-opt)
 
 if(ENABLE_SPIRV_TOOLS_INSTALL)
-  install(TARGETS SPIRV-Tools-opt EXPORT SPIRV-Tools-optTargets)
+  set(SPIRV-Tools-opt-InstallTargets SPIRV-Tools-opt)
+
+  if (SPIRV_TOOLS_USE_MIMALLOC AND (NOT SPIRV_TOOLS_BUILD_STATIC OR SPIRV_TOOLS_USE_MIMALLOC_IN_STATIC_BUILD))
+    list(APPEND SPIRV-Tools-opt-InstallTargets mimalloc-static)
+  endif()
+
+  install(TARGETS ${SPIRV-Tools-opt-InstallTargets} EXPORT SPIRV-Tools-optTargets)
   export(EXPORT SPIRV-Tools-optTargets FILE SPIRV-Tools-optTargets.cmake)
 
   spvtools_config_package_dir(SPIRV-Tools-opt PACKAGE_DIR)
